@@ -1,15 +1,16 @@
-# Mini_AutoML
+#Mini_AutoML
 
-Projekt został zrealizowany w ramach kursu AutoML na Politechnice Warszawskiej.
+This project was completed as part of the AutoML course at Warsaw University of Technology.
 
-## Autorzy:
+The goal of the project is to create a simplified AutoML system that allows automatic execution of a binary classification task on any provided dataset.
+
+## Authors:
 
 * Karol Kacprzak
 * Ludwik Madej
 * Mikołaj Bójski
 
-
-## Struktura plików:
+## File Structure:
 ```
 ├─ Datasets
 │  ├─ for_portfolio
