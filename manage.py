@@ -18,7 +18,7 @@ IMPORT_TO_PACKAGE_MAPPING = {
 }
 
 # Elementy ignorowane w strukturze katalogów i skanowaniu importów
-IGNORE = {'.git', '__pycache__', '.DS_Store', '.gitkeep', '.venv', '.idea', 'manage.py'}
+IGNORE = {'.git', '__pycache__', '.DS_Store', '.gitkeep', '.venv', '.idea'}
 
 # Pakiety, które nie powinny znaleźć się w requirements.txt (narzędzia deweloperskie/podstawowe)
 DEV_TOOLS_TO_IGNORE = {

@@ -18,10 +18,13 @@ The goal of the project is to create a simplified AutoML system that allows auto
 │   └─ for_tests
 ├─ preprocessing
 ├─ temporary_code
-│   └─ info.md
+│   ├─ info.md
+│   └─ tmp_Karol.ipynb
 ├─ README.md
+├─ manage.py
 └─ requirements.txt
 ```
+
 
 
 
