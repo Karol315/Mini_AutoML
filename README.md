@@ -16,14 +16,17 @@ The goal of the project is to create a simplified AutoML system that allows auto
 ├─ Datasets
 │   ├─ for_portfolio
 │   └─ for_tests
-├─ preprocessing
-├─ temporary_code
-│   ├─ info.md
-│   └─ tmp_Karol.ipynb
+├─ src
+│   ├─ preprocessing
+│   ├─ temporary_code
+│   │   ├─ info.md
+│   │   └─ tmp_Karol.ipynb
+│   └─ interfaces.py
 ├─ README.md
 ├─ manage.py
 └─ requirements.txt
 ```
+
 
 
 
