@@ -1,90 +1,163 @@
 from abc import ABC, abstractmethod
 from typing import Any, List, Union
 import pandas as pd
+from sklearn.base import BaseEstimator, TransformerMixin
 
-# Używamy Union[pd.DataFrame, Any] aby zachować elastyczność, 
-# ale z uwagi na dane tabelaryczne, DF jest preferowane.
+# -----------------------------
+# Universal Pipeline Adapter
+# -----------------------------
+class PipelineAdapter(BaseEstimator, TransformerMixin):
+    """
+    General adapter for any pipeline-like object (transformer, model, pipeline)
+    to make it sklearn-compatible with deep get_params support.
+    """
 
+    def __init__(self, obj):
+        """
+        obj: any object with fit/transform/predict interface
+        """
+        self.obj = obj
+
+    def fit(self, X, y=None):
+        if hasattr(self.obj, "fit_transform"):
+            self.obj.fit_transform(X, y)
+        else:
+            self.obj.fit(X, y)
+        return self
+
+    def transform(self, X):
+        if hasattr(self.obj, "transform"):
+            return self.obj.transform(X)
+        return X
+
+    def predict(self, X):
+        if hasattr(self.obj, "predict"):
+            return self.obj.predict(X)
+        raise AttributeError("Underlying object has no predict method")
+
+    def predict_proba(self, X):
+        if hasattr(self.obj, "predict_proba"):
+            return self.obj.predict_proba(X)
+        raise AttributeError("Underlying object has no predict_proba method")
+
+    def get_params(self, deep=True):
+        if hasattr(self.obj, "get_params"):
+            if deep:
+                return {f"obj__{k}": v for k, v in self.obj.get_params(deep=True).items()}
+            else:
+                return {"obj": self.obj}
+        return {"obj": self.obj}
+
+
+# -----------------------------
+# Base class
+# -----------------------------
 class BasePreProcessor(ABC):
     """
-    Ogólny Interfejs Bazowy dla wszystkich kroków preprocessingu. 
-    Wymusza standardowe metody fit/transform.
+    Base interface for all preprocessing steps.
     """
-    
+
     def __init__(self):
-        # Atrybut, w którym będą przechowywane nazwy kolumn po transformacji.
-        self._column_names: List[str] = []
+        self._feature_names_out: List[str] = []
 
     @abstractmethod
-    def fit(self, X: pd.DataFrame, y: Union[pd.Series, Any] = None) -> 'BasePreProcessor':
-        """Uczy parametry transformacji na danych X."""
+    def fit(self, X: pd.DataFrame, y: Union[pd.Series, Any] = None):
         return self
 
     @abstractmethod
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        """Stosuje nauczoną transformację na danych X."""
         pass
-    
-    # Metoda z Scikit-learn dla wygody
+
     def fit_transform(self, X: pd.DataFrame, y: Union[pd.Series, Any] = None) -> pd.DataFrame:
-        """Uczy i stosuje transformację w jednym kroku."""
         return self.fit(X, y).transform(X)
 
-    @abstractmethod
-    def get_params(self) -> dict:
-        """Zwraca parametry (hiperparametry) zaimplementowanego kroku."""
-        pass
-    
-    def get_feature_names(self) -> List[str]:
-        """Zwraca nazwy kolumn po transformacji przez ten krok."""
-        return self._column_names
+    def get_feature_names_out(self, input_features=None) -> List[str]:
+        return self._feature_names_out
 
-    # Dwie dodatkowe metody dla Auto ML i inspekcji
     @abstractmethod
     def get_description(self) -> str:
-        """Zwraca krótki opis transformacji."""
         pass
 
-class ValueModifier(BasePreProcessor):
+    def get_params(self, deep=True) -> dict:
+        params = {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
+        if deep:
+            for k, v in params.copy().items():
+                if isinstance(v, BasePreProcessor):
+                    nested = v.get_params(deep=True)
+                    for nk, nv in nested.items():
+                        params[f"{k}__{nk}"] = nv
+        return params
+
+
+# -----------------------------
+# ValueModifier interface
+# -----------------------------
+class ValueModifierPreProcessor(BasePreProcessor):
     """
-    Interfejs dla transformacji modyfikujących wartości w kolumnach 
-    (np. skalowanie, imputacja, logarytmowanie).
-    Nie zmienia liczby ani nazw kolumn.
+    Interface for transformers that modify values
+    but do not change feature count or names.
     """
-    # Wymaga się dziedziczenia i implementacji metod z BasePreProcessor
-    # nie trzeba ich tu powtarzać, ale można dodać konkretne dla modyfikacji
     pass
 
-class ShapeChanger(BasePreProcessor):
+
+# -----------------------------
+# ShapeChanger interface
+# -----------------------------
+class ShapeChangerPreProcessor(BasePreProcessor):
     """
-    Interfejs dla transformacji zmieniających kształt (liczbę lub nazwy kolumn).
-    Wymaga implementacji zarządzania kolumnami wejściowymi i wyjściowymi.
+    Interface for transformers that may change the number
+    or names of features.
     """
 
     def __init__(self):
         super().__init__()
-        # Inne atrybuty do śledzenia zmian
-        self._input_column_names: List[str] = []
-        self._new_column_names: List[str] = []
-        self._removed_column_names: List[str] = []
+        self._input_features: List[str] = []
+        self._new_features: List[str] = []
+        self._removed_features: List[str] = []
 
     @abstractmethod
-    def get_original_columns(self) -> List[str]:
-        """Zwraca listę kolumn, które weszły do transformacji."""
-        return self._input_column_names
+    def get_original_features(self) -> List[str]:
+        return self._input_features
 
     @abstractmethod
-    def get_newly_created_columns(self) -> List[str]:
-        """Zwraca listę kolumn, które zostały stworzone przez transformację."""
-        return self._new_column_names
+    def get_new_features(self) -> List[str]:
+        return self._new_features
 
     @abstractmethod
-    def get_removed_columns(self) -> List[str]:
-        """Zwraca listę kolumn, które zostały usunięte przez transformację (jeśli dotyczy)."""
-        return self._removed_column_names
-        
-    # Wymuszenie, aby klasa implementująca pamiętała o aktualizacji nazw w metodzie fit i transform
+    def get_removed_features(self) -> List[str]:
+        return self._removed_features
+
+class BaseModel(ABC):
+    """
+    Base interface for any predictive model.
+    Methods: fit, predict, optionally predict_proba.
+    Compatible with universal PipelineAdapter for sklearn integration.
+    """
+
     @abstractmethod
-    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        """Stosuje transformację. Musi ustawić self._column_names."""
+    def fit(self, X: Any, y: Any):
+        """
+        Fit the model to data X and labels y.
+        """
+        return self
+
+    @abstractmethod
+    def predict(self, X: Any) -> Any:
+        """
+        Predict labels for X.
+        """
         pass
+
+    def predict_proba(self, X: Any) -> Any:
+        """
+        Optional: return predicted probabilities for X.
+        """
+        raise NotImplementedError("This model does not support probability predictions")
+
+    @abstractmethod
+    def get_params(self, deep=True) -> dict:
+        """
+        Return model parameters (hyperparameters).
+        deep=True for nested objects.
+        """
+        return {}

@@ -24,8 +24,10 @@ The goal of the project is to create a simplified AutoML system that allows auto
 │   └─ interfaces.py
 ├─ README.md
 ├─ manage.py
+├─ .gitignore
 └─ requirements.txt
 ```
+
 
 
 
